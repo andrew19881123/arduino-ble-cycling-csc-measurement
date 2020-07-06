@@ -134,6 +134,7 @@ byte cscMeasurementData[CSC_MEASUREMENT_BYTES];
 byte cscFeatureData[CSC_FEATURE_BYTES];
 byte sensorLocationData[SENSOR_LOCATION_BYTES];
 
+long previousMillis = 0;
 
 void setup() {
 
@@ -151,8 +152,8 @@ void setup() {
 
   // set advertised local name and service UUID:
   BLE.setLocalName(DEVICE_NAME);
-  BLE.setDeviceName(DEVICE_NAME);
-  BLE.setAppearance(DEVICE_APPEARANCE);
+  // BLE.setDeviceName(DEVICE_NAME);
+  // BLE.setAppearance(DEVICE_APPEARANCE);
   BLE.setAdvertisedService(bleCyclingSpeedAndCadenceService);
 
 
@@ -245,38 +246,41 @@ void loop() {
 
     // while the central is still connected to peripheral:
     while (central.connected()) {
-      wheelRev += printRandoms(4, 5);
-      wheelTime = printRandoms(4999, 5001);
-      crankRev += printRandoms(9, 10);
-      crankTime = printRandoms(4999, 5001);
+      long currentMillis = millis();
 
-      Serial.print("wheelRev: ");
-      Serial.println(wheelRev);
+      if (currentMillis - previousMillis >= 1000) {
+        previousMillis = currentMillis;
+        wheelRev += printRandoms(4, 5);
+        wheelTime = printRandoms(4999, 5001);
+        crankRev += printRandoms(9, 10);
+        crankTime = printRandoms(4999, 5001);
 
-      Serial.print("wheelTime: ");
-      Serial.println(wheelTime);
+        Serial.print("wheelRev: ");
+        Serial.println(wheelRev);
 
-      Serial.print("crankRev: ");
-      Serial.println(crankRev);
+        Serial.print("wheelTime: ");
+        Serial.println(wheelTime);
 
-      Serial.print("crankTime: ");
-      Serial.println(crankTime);
+        Serial.print("crankRev: ");
+        Serial.println(crankRev);
 
-      memcpy(cscMeasurementData, &csc_measurement_flags, 1);
-      memcpy(cscMeasurementData + 1, &wheelRev, 4);
-      memcpy(cscMeasurementData + 5, &wheelTime, 2);
-      memcpy(cscMeasurementData + 7, &crankRev, 2);
-      memcpy(cscMeasurementData + 9, &crankTime, 2);
-      bleCscMeasurementCharacteristic.writeValue(cscMeasurementData, CSC_MEASUREMENT_BYTES);
+        Serial.print("crankTime: ");
+        Serial.println(crankTime);
 
-      delay(1000);
+        memcpy(cscMeasurementData, &csc_measurement_flags, 1);
+        memcpy(cscMeasurementData + 1, &wheelRev, 4);
+        memcpy(cscMeasurementData + 5, &wheelTime, 2);
+        memcpy(cscMeasurementData + 7, &crankRev, 2);
+        memcpy(cscMeasurementData + 9, &crankTime, 2);
+        bleCscMeasurementCharacteristic.writeValue(cscMeasurementData, CSC_MEASUREMENT_BYTES);
+
+      }
     }
 
     // when the central disconnects, print it out:
     Serial.print(("Disconnected from central: "));
     Serial.println(central.address());
   }
-  // delay(5000);
 
 }
 
