@@ -248,12 +248,12 @@ void loop() {
     while (central.connected()) {
       long currentMillis = millis();
 
-      if (currentMillis - previousMillis >= 1000) {
+      if (currentMillis - previousMillis >= 5000) {
         previousMillis = currentMillis;
-        wheelRev += printRandoms(4, 5);
-        wheelTime = printRandoms(4999, 5001);
-        crankRev += printRandoms(9, 10);
-        crankTime = printRandoms(4999, 5001);
+        wheelRev += printRandoms(15, 16);
+        wheelTime += 5000;
+        crankRev += printRandoms(3, 4);
+        crankTime += 5000;
 
         Serial.print("wheelRev: ");
         Serial.println(wheelRev);
