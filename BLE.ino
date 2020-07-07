@@ -2,42 +2,45 @@
 #include <ArduinoBLE.h>
 #include <stdlib.h>
 
-// -------------------------------- BLE --------------------------------- 
-// advertised name              2A00              Wahoo CADENCE BF59
-// appearance                   2A01              [115] Cycling: Cadence Sensor (Cyclig subtype)
-// peripheral preferred conn.   2A04              conn interval: 500.00ms - 1000.00ms, slave latency: 0, supervision timeout multiplier: 600
+//----------------------GENERIC ACCESS--------------------------
+// advertised name                              2A00              Bikerino
+// appearance                                   2A01              1157 Cycling: Speed and Cadence Sensor
+// peripheral_preferred_connection_parameters   2A04              conn interval: 500.00ms - 1000.00ms, slave latency: 0, supervision timeout multiplier: 600
 
-#define DEVICE_NAME             "Wahoo CADENCE BF58"
-#define DEVICE_APPEARANCE       0x2a01
-
-
-
-//----------------------generic_access--------------------------
 #define BLE_UUID_GENERIC_ACCESS_SERVICE                                     "1800" 
 BLEService bleGenericAccessService( BLE_UUID_GENERIC_ACCESS_SERVICE );
 
+#define DEVICE_NAME                                                         "Bikerino"
+#define FIRMWARE_V                                                          "1.0"
+#define HW_REV                                                              "1"
 
 #define BLE_UUID_PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_CHARACTERISTIC  "2A04"
+#define BLE_UUID_APPEARANCE_CHARACTERISTIC                                  "2A01"
 
-#define PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_BYTES                  8
+#define PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_BYTES                    8
+#define PERIPHERAL_APPEARANCE_BYTES                                         8
 
 BLECharacteristic blePeripheralPreferredConnectionParametersCharacteristic(BLE_UUID_PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_CHARACTERISTIC, BLERead , PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_BYTES);
+BLECharacteristic bleAppearanceCharacteristic(BLE_UUID_APPEARANCE_CHARACTERISTIC, BLERead , PERIPHERAL_APPEARANCE_BYTES);
 
 uint16_t minConnInt = 7;
 uint16_t maxConnInt = 50;
 uint16_t slaveLat = 0;
 uint16_t stm = 600;
 
+uint16_t appearance = 1157;
+
 byte peripheralPreferredConnectionParametersData[PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_BYTES];
+byte appearancesData[PERIPHERAL_APPEARANCE_BYTES];
 
 // --------------------------------------------- DEVICE INFORMATION ----------------
 // s device_information                           180A
-// c manufacturer_name_string                     2A29  read    ->  value: Wahoo Fitness
-// c hardware_revision_string                     2a27  read    ->  value: 7
-// c firmware_revision_string                     2A26  read    ->  value: 2.0.19
+// c manufacturer_name_string                     2A29  read    ->  value: Bikerino
+// c hardware_revision_string                     2a27  read    ->  value: 1
+// c firmware_revision_string                     2A26  read    ->  value: 1.0
 // c peripheral_preferred_connection_parameters   2A04          ->  value: conn interval: 500.00ms - 1000.00ms, slave latency: 0, supervision timeout multiplier: 600
 
-#define BLE_UUID_DEVICE_INFORMATION_SERVICE                               "180A" 
+#define BLE_UUID_DEVICE_INFORMATION_SERVICE                                 "180A" 
 BLEService bleDeviceInfoService( BLE_UUID_DEVICE_INFORMATION_SERVICE );
 
 
@@ -45,15 +48,14 @@ BLEService bleDeviceInfoService( BLE_UUID_DEVICE_INFORMATION_SERVICE );
 #define BLE_UUID_HARDWARE_REVISION_STRING_CHARACTERISTIC                    "2A27"
 #define BLE_UUID_CSC_FIRMWARE_REVISION_STRING_CHARACTERISTIC                "2A26"
 
-BLECharacteristic bleManufacturerNameStringCharacteristic(BLE_UUID_MANUFACTURER_NAME_STRING_CHARACTERISTIC, BLERead , "Wahoo Fitness");
-BLECharacteristic bleHardwareRevisionStringCharacteristic(BLE_UUID_HARDWARE_REVISION_STRING_CHARACTERISTIC, BLERead , "7");
-BLECharacteristic bleFirmwareRevisionStringCharacteristic(BLE_UUID_CSC_FIRMWARE_REVISION_STRING_CHARACTERISTIC, BLERead , "2.0.19");
+BLECharacteristic bleManufacturerNameStringCharacteristic(BLE_UUID_MANUFACTURER_NAME_STRING_CHARACTERISTIC, BLERead , DEVICE_NAME);
+BLECharacteristic bleHardwareRevisionStringCharacteristic(BLE_UUID_HARDWARE_REVISION_STRING_CHARACTERISTIC, BLERead , HW_REV);
+BLECharacteristic bleFirmwareRevisionStringCharacteristic(BLE_UUID_CSC_FIRMWARE_REVISION_STRING_CHARACTERISTIC, BLERead , FIRMWARE_V);
 
 
 // ------------------------- BATTERY ---------------------------
 // s battery_service          180F
 // c battery_level            2A19    notify read
-//      client_characteristic_configuration     notification indications disabled
 
 #define BLE_UUID_BATTERY_SERVICE                                          "180F"
 BLEService bleBatteryService( BLE_UUID_BATTERY_SERVICE );
@@ -112,7 +114,7 @@ BLEService bleCyclingSpeedAndCadenceService( BLE_UUID_CYCLING_SPEED_AND_CADENCE_
 #define CSC_MEASUREMENT_BYTES                                             11
 #define CSC_FEATURE_BYTES                                                 2
 #define SENSOR_LOCATION_BYTES                                             1
-#define SC_CONTROL_POINT_BYTES                                            999 // FIXME VALORE DA CALCOLARE
+// #define SC_CONTROL_POINT_BYTES                                            999 // FIXME VALORE DA CALCOLARE
 
 uint8_t csc_measurement_flags = 0b00000011;
 int32_t wheelRev = 0;
@@ -128,7 +130,7 @@ uint8_t sensor_location_flag = 6;
 BLECharacteristic bleCscMeasurementCharacteristic(BLE_UUID_CSC_MEASUREMENT_CHARACTERISTIC, BLENotify, CSC_MEASUREMENT_BYTES);
 BLECharacteristic bleCscFeatureCharacteristic(BLE_UUID_CSC_FEATURE_CHARACTERISTIC, BLERead, CSC_FEATURE_BYTES);
 BLECharacteristic bleSensorLocationCharacteristic(BLE_UUID_SENSOR_LOCATION_CHARACTERISTIC, BLERead, SENSOR_LOCATION_BYTES);
-BLECharacteristic bleScControlPointCharacteristic(BLE_UUID_SC_CONTROL_POINT_CHARACTERISTIC, BLEIndicate | BLEWrite, SC_CONTROL_POINT_BYTES);
+// BLECharacteristic bleScControlPointCharacteristic(BLE_UUID_SC_CONTROL_POINT_CHARACTERISTIC, BLEIndicate | BLEWrite, SC_CONTROL_POINT_BYTES);
 
 byte cscMeasurementData[CSC_MEASUREMENT_BYTES];
 byte cscFeatureData[CSC_FEATURE_BYTES];
@@ -153,18 +155,21 @@ void setup() {
   // set advertised local name and service UUID:
   BLE.setLocalName(DEVICE_NAME);
   // BLE.setDeviceName(DEVICE_NAME);
-  // BLE.setAppearance(DEVICE_APPEARANCE);
   BLE.setAdvertisedService(bleCyclingSpeedAndCadenceService);
 
 
   // -----GENERIC ACCESS ------
   bleGenericAccessService.addCharacteristic(blePeripheralPreferredConnectionParametersCharacteristic);
-
   memcpy(peripheralPreferredConnectionParametersData, &minConnInt, 2);
   memcpy(peripheralPreferredConnectionParametersData + 2, &maxConnInt, 2);
   memcpy(peripheralPreferredConnectionParametersData + 4, &slaveLat, 2);
   memcpy(peripheralPreferredConnectionParametersData + 6, &stm, 2);
   blePeripheralPreferredConnectionParametersCharacteristic.writeValue(peripheralPreferredConnectionParametersData, PERIPHERAL_PREFERRED_CONNECTION_PARAMETERS_BYTES);
+
+  bleGenericAccessService.addCharacteristic(bleAppearanceCharacteristic);
+  memcpy(appearancesData, &appearance, 2);
+  blePeripheralPreferredConnectionParametersCharacteristic.writeValue(appearancesData, PERIPHERAL_APPEARANCE_BYTES);
+
 
 
   // --- DEVICE INFO ---
@@ -193,7 +198,7 @@ void setup() {
   bleCyclingSpeedAndCadenceService.addCharacteristic(bleCscMeasurementCharacteristic);
   bleCyclingSpeedAndCadenceService.addCharacteristic(bleCscFeatureCharacteristic);
   bleCyclingSpeedAndCadenceService.addCharacteristic(bleSensorLocationCharacteristic);
-  bleCyclingSpeedAndCadenceService.addCharacteristic(bleScControlPointCharacteristic);
+  // bleCyclingSpeedAndCadenceService.addCharacteristic(bleScControlPointCharacteristic);
 
   BLE.addService(bleCyclingSpeedAndCadenceService);
 
